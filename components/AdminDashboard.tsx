@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Post, NewPostPayload } from '../types';
 import FeedItem from './FeedItem';
 import Button from './Button';
@@ -11,6 +12,8 @@ interface AdminDashboardProps {
   onReject: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onAddAdminPost: (payload: NewPostPayload) => Promise<void>;
+  onUpdateTicker: (text: string) => Promise<void>;
+  currentTicker: string;
   onLogout: () => void;
   onRefresh: () => void;
 }
@@ -22,12 +25,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onReject,
   onDelete,
   onAddAdminPost,
+  onUpdateTicker,
+  currentTicker,
   onLogout,
   onRefresh
 }) => {
   const [activeTab, setActiveTab] = useState<'moderation' | 'cms'>('moderation');
   const [adminPostContent, setAdminPostContent] = useState('');
+  const [tickerContent, setTickerContent] = useState(currentTicker);
   const [isActionLoading, setIsActionLoading] = useState(false);
+
+  // Update local state when prop changes (initial load)
+  useEffect(() => {
+      setTickerContent(currentTicker);
+  }, [currentTicker]);
 
   // Filter lists
   const pendingPosts = posts.filter(p => p.status === 'pending').sort((a,b) => b.timestamp - a.timestamp);
@@ -46,6 +57,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setAdminPostContent('');
     setIsActionLoading(false);
     alert('Tekstblok toegevoegd!');
+  };
+
+  const handleSaveTicker = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsActionLoading(true);
+      await onUpdateTicker(tickerContent);
+      setIsActionLoading(false);
+      alert('Ticker balk bijgewerkt!');
   };
 
   const wrapAction = async (action: () => Promise<void>) => {
@@ -79,7 +98,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 onClick={() => setActiveTab('cms')}
                 className={`flex-1 p-4 font-bold text-lg text-center transition-colors ${activeTab === 'cms' ? 'bg-cyan-300 text-black' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}
             >
-                CMS / Tekstblokken
+                CMS / Site Beheer
             </button>
         </div>
 
@@ -118,9 +137,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {/* CMS TAB */}
             {activeTab === 'cms' && (
-                <div>
-                    <div className="mb-8 bg-blue-50 p-6 rounded-xl border-2 border-blue-200">
-                        <h3 className="font-bold text-lg mb-2 text-blue-800">Nieuw Tekstblok Toevoegen</h3>
+                <div className="space-y-8">
+                    
+                    {/* TICKER EDITOR */}
+                    <div className="bg-yellow-100 p-6 rounded-xl border-2 border-yellow-400 shadow-md">
+                        <h3 className="font-bold text-lg mb-2 text-yellow-800">📢 Ticker Balk (Lopende tekst)</h3>
+                        <form onSubmit={handleSaveTicker} className="flex gap-2">
+                            <input 
+                                type="text"
+                                className="flex-1 border-2 border-yellow-500 rounded p-2 focus:ring-2 focus:ring-yellow-600 outline-none font-mono"
+                                value={tickerContent}
+                                onChange={e => setTickerContent(e.target.value)}
+                                placeholder="+++ Typ hier je lopende tekst... +++"
+                            />
+                            <Button type="submit" variant="secondary" size="sm">Opslaan</Button>
+                        </form>
+                    </div>
+
+                    {/* NEW POST EDITOR */}
+                    <div className="bg-blue-50 p-6 rounded-xl border-2 border-blue-200 shadow-md">
+                        <h3 className="font-bold text-lg mb-2 text-blue-800">📝 Nieuw Tekstblok Toevoegen</h3>
                         <form onSubmit={handleCreatePost}>
                             <textarea 
                                 className="w-full border-2 border-blue-300 rounded p-3 h-32 mb-3 focus:ring-2 focus:ring-blue-500 outline-none"

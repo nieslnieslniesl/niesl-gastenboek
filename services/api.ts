@@ -1,3 +1,4 @@
+
 import { Post, NewPostPayload } from '../types';
 import { supabase } from './supabase';
 
@@ -36,7 +37,7 @@ export const api = {
     const dbPayload = {
       ...payload,
       timestamp: Date.now(),
-      status: payload.type === 'admin' ? 'approved' : 'pending',
+      status: payload.type === 'admin' || payload.type === 'settings_ticker' ? 'approved' : 'pending',
       ip: ip
     };
 
@@ -68,6 +69,32 @@ export const api = {
 
     if (error) throw error;
   },
+
+  // --- TICKER FUNCTIES ---
+  
+  // Haalt de laatst aangemaakte ticker tekst op
+  getTicker: async (): Promise<string> => {
+      const { data } = await supabase
+        .from('posts')
+        .select('content')
+        .eq('type', 'settings_ticker')
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .single();
+      
+      return data ? data.content : '+++ Welkom op de site! +++ Laat een berichtje achter! +++ Hyves is back baby! +++';
+  },
+
+  // Slaat een nieuwe ticker tekst op (maakt een nieuwe entry aan, zodat we historie behouden)
+  updateTicker: async (text: string): Promise<void> => {
+      await api.createPost({
+          author: 'System',
+          content: text,
+          type: 'settings_ticker'
+      });
+  },
+
+  // --- AUTH ---
 
   login: async (email: string, password: string): Promise<boolean> => {
     const { data, error } = await supabase.auth.signInWithPassword({

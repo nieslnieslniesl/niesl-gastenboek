@@ -1,4 +1,5 @@
-export type PostType = 'admin' | 'guestbook';
+
+export type PostType = 'admin' | 'guestbook' | 'settings_ticker';
 
 export type PostStatus = 'approved' | 'pending' | 'rejected';
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Post, NewPostPayload } from './types';
 import { api } from './services/api';
@@ -18,6 +19,7 @@ const LAYOUT_STYLES = {
 const App: React.FC = () => {
   // --- STATE ---
   const [posts, setPosts] = useState<Post[]>([]);
+  const [tickerText, setTickerText] = useState('+++ Welkom op de site! +++ Laden... +++');
   const [isLoading, setIsLoading] = useState(true);
   
   const [view, setView] = useState<'home' | 'guestbook_form' | 'admin_login' | 'admin_dashboard'>('home');
@@ -27,10 +29,14 @@ const App: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // --- INIT DATA ---
-  const fetchPosts = async () => {
+  const fetchData = async () => {
     try {
-        const fetchedPosts = await api.getPosts();
+        const [fetchedPosts, fetchedTicker] = await Promise.all([
+            api.getPosts(),
+            api.getTicker()
+        ]);
         setPosts(fetchedPosts);
+        setTickerText(fetchedTicker);
     } catch (e) {
         console.error("Failed to fetch", e);
     } finally {
@@ -39,7 +45,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchPosts();
+    fetchData();
     // Check if admin is already logged in from previous session
     api.checkSession().then(isAuth => {
         if(isAuth) setIsAdminAuthenticated(true);
@@ -51,7 +57,7 @@ const App: React.FC = () => {
   const handleNewGuestbookEntry = async (payload: NewPostPayload) => {
     try {
         await api.createPost(payload);
-        await fetchPosts(); 
+        await fetchData(); 
         setView('home');
         alert('Bedankt voor je krabbel! Hij verschijnt zodra de admin hem goedkeurt.');
     } catch (e) {
@@ -61,7 +67,12 @@ const App: React.FC = () => {
 
   const handleNewAdminPost = async (payload: NewPostPayload) => {
     await api.createPost(payload);
-    await fetchPosts();
+    await fetchData();
+  };
+
+  const handleUpdateTicker = async (text: string) => {
+      await api.updateTicker(text);
+      setTickerText(text); // Immediate local update
   };
 
   const handleApprove = async (id: string) => {
@@ -108,8 +119,9 @@ const App: React.FC = () => {
 
   // --- RENDER HELPERS ---
 
+  // BELANGRIJK: Filter de 'settings_ticker' berichten eruit zodat ze niet in de feed komen!
   const feedPosts = posts
-    .filter(p => p.status === 'approved')
+    .filter(p => p.status === 'approved' && p.type !== 'settings_ticker')
     .sort((a, b) => b.timestamp - a.timestamp);
 
   // --- VIEWS ---
@@ -123,7 +135,9 @@ const App: React.FC = () => {
         onReject={handleReject}
         onDelete={handleDelete}
         onAddAdminPost={handleNewAdminPost}
-        onRefresh={fetchPosts}
+        onUpdateTicker={handleUpdateTicker}
+        currentTicker={tickerText}
+        onRefresh={fetchData}
         onLogout={handleLogout}
       />
     );
@@ -151,7 +165,7 @@ const App: React.FC = () => {
         </div>
         <div className="bg-yellow-300 py-1 overflow-hidden border-b border-black">
              <div className="animate-marquee whitespace-nowrap text-sm font-bold uppercase tracking-widest">
-                 +++ Welkom op de site! +++ Laat een berichtje achter! +++ Hyves is back baby! +++ Kusjes van Niesl +++
+                 {tickerText}
              </div>
         </div>
       </header>
@@ -184,8 +198,7 @@ const App: React.FC = () => {
                             disabled={isLoggingIn}
                             required
                         />
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-500 italic">Login via Supabase</span>
+                        <div className="flex justify-end items-center">
                             <Button type="submit" disabled={isLoggingIn}>
                                 {isLoggingIn ? 'Even checken...' : 'Inloggen'}
                             </Button>
